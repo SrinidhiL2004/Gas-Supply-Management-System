@@ -1,12 +1,31 @@
 --DROP ALL TABLES
+DECLARE
+  v_sql VARCHAR2(1000);
+BEGIN
+  -- Disable all foreign key constraints
+  FOR c IN (SELECT table_name, constraint_name
+            FROM user_constraints
+            WHERE constraint_type = 'R') -- 'R' denotes referential constraints (foreign keys)
+  LOOP
+    v_sql := 'ALTER TABLE ' || c.table_name || ' DISABLE CONSTRAINT ' || c.constraint_name;
+    EXECUTE IMMEDIATE v_sql;
+  END LOOP;
 
-DROP TABLE EMPLOYEE;
-DROP TABLE CUSTOMER;
-DROP TABLE LOCATION;
-DROP TABLE AGENCY;
-DROP TABLE SUPPLIER;
-DROP TABLE ORDERS;
-DROP TABLE CUSTOMER_POLICY;
+  -- Drop tables
+  FOR t IN (SELECT table_name FROM user_tables) LOOP
+    v_sql := 'DROP TABLE ' || t.table_name || ' CASCADE CONSTRAINTS';
+    EXECUTE IMMEDIATE v_sql;
+  END LOOP;
+END;
+/
+--DROP TABLE EMPLOYEE;
+--DROP TABLE CUSTOMER;
+--DROP TABLE LOCATION;
+--DROP TABLE AGENCY;
+--DROP TABLE SUPPLIER;
+--DROP TABLE ORDERS;
+--DROP TABLE CUSTOMER_POLICY;
+
 
 --CREATE ALL ENTITIES
 
@@ -39,6 +58,7 @@ CREATE TABLE ORDERS(ORDER_ID VARCHAR2(5) CONSTRAINT PK_ORDERS PRIMARY KEY, CUST_
                      EMP_ID VARCHAR2(5) REFERENCES EMPLOYEE(EMP_ID), 
                         ORDER_DATE DATE, DELIVERY_DATE DATE, QTY NUMBER(5), UNIT_PRICE NUMBER(5), TOTAL_AMT NUMBER(5), CONSTRAINT CONS_ORDERS CHECK(ORDER_ID LIKE 'O%')); 
 
+--DISPLAYING THE TABLES 
 
 DESC LOCATION;
 DESC CUSTOMER_POLICY;
@@ -49,7 +69,8 @@ DESC SUPPLIER;
 DESC ORDERS;
 DESC SUPPLIER_AGENCY_MAPPING;
 
--------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------
+
 -- INSERT VALUES INTO LOCATION
 INSERT INTO LOCATION VALUES (560003, 'Malleshwaram');
 INSERT INTO LOCATION VALUES (560079, 'Basaveswara Nagar');
@@ -59,6 +80,7 @@ INSERT INTO LOCATION VALUES (560001, 'Cubbon Road');
 INSERT INTO LOCATION VALUES (560104, 'Vijayanagar');
 INSERT INTO LOCATION VALUES (560076, 'Bannerghatta');
 INSERT INTO LOCATION VALUES (560078, 'JP Nagar');
+
 
 -- INSERT VALUES INTO CUSTOMER_POLICY
 INSERT INTO CUSTOMER_POLICY VALUES ('T0001', 100);
@@ -72,6 +94,7 @@ INSERT INTO CUSTOMER_POLICY VALUES ('T0008', 160);
 INSERT INTO CUSTOMER_POLICY VALUES ('T0009', 220);
 INSERT INTO CUSTOMER_POLICY VALUES ('T0010', 180);
 
+
 -- INSERT VALUES INTO AGENCY
 INSERT INTO AGENCY VALUES ('A0001', 'Agency 1', 560084);
 INSERT INTO AGENCY VALUES ('A0002', 'Agency 2', 560079);
@@ -83,6 +106,7 @@ INSERT INTO AGENCY VALUES ('A0007', 'Agency 7', 560104);
 INSERT INTO AGENCY VALUES ('A0008', 'Agency 8', 560076);
 INSERT INTO AGENCY VALUES ('A0009', 'Agency 9', 560078);
 INSERT INTO AGENCY VALUES ('A0010', 'Agency 10', 560078);
+
 
 -- INSERT VALUES INTO SUPPLIER
 INSERT INTO SUPPLIER VALUES ('S0001', 'Supplier 1');
@@ -96,6 +120,7 @@ INSERT INTO SUPPLIER VALUES ('S0008', 'Supplier 8');
 INSERT INTO SUPPLIER VALUES ('S0009', 'Supplier 9');
 INSERT INTO SUPPLIER VALUES ('S0010', 'Supplier 10');
 
+
 -- INSERT VALUES INTO SUPPLIER_AGENCY_MAPPING
 INSERT INTO SUPPLIER_AGENCY_MAPPING VALUES ('A0001', 'S0001');
 INSERT INTO SUPPLIER_AGENCY_MAPPING VALUES ('A0002', 'S0002');
@@ -107,6 +132,7 @@ INSERT INTO SUPPLIER_AGENCY_MAPPING VALUES ('A0007', 'S0007');
 INSERT INTO SUPPLIER_AGENCY_MAPPING VALUES ('A0008', 'S0008');
 INSERT INTO SUPPLIER_AGENCY_MAPPING VALUES ('A0009', 'S0009');
 INSERT INTO SUPPLIER_AGENCY_MAPPING VALUES ('A0010', 'S0010');
+
 
 -- INSERT VALUES INTO EMPLOYEE
 INSERT INTO EMPLOYEE VALUES ('E0001', 'John Doe', 9876543210, 560084);
@@ -120,6 +146,7 @@ INSERT INTO EMPLOYEE VALUES ('E0008', 'Olivia Garcia', 9876543217, 560076);
 INSERT INTO EMPLOYEE VALUES ('E0009', 'William Martinez', 9876543218, 560078);
 INSERT INTO EMPLOYEE VALUES ('E0010', 'Sophia Anderson', 9876543219, 560078);
 
+
 -- INSERT VALUES INTO CUSTOMER
 INSERT INTO CUSTOMER VALUES ('C0001', 'Alice', 560084, 9876543201, 'A0001', 'T0001', 123456789012, 100);
 INSERT INTO CUSTOMER VALUES ('C0002', 'Bob', 560079, 9876543202, 'A0002', 'T0002', 123456789013, 200);
@@ -127,6 +154,7 @@ INSERT INTO CUSTOMER VALUES ('C0003', 'Charlie', 560001, 9876543203, 'A0003', 'T
 INSERT INTO CUSTOMER VALUES ('C0004', 'David', 560078, 9876543204, 'A0004', 'T0004', 123456789015, 120);
 INSERT INTO CUSTOMER VALUES ('C0005', 'Emma', 560096, 9876543205, 'A0005', 'T0005', 123456789016, 250);
 INSERT INTO CUSTOMER VALUES ('C0006', 'Frank', 560003, 9876543206, 'A0006', 'T0006', 123456789017, 180);
+
 
 -- INSERT VALUES INTO ORDERS
 INSERT INTO ORDERS VALUES ('O0001', 'C0001', 'E0001', TO_DATE('2023-01-01', 'YYYY-MM-DD'), TO_DATE('2023-01-05', 'YYYY-MM-DD'), 10, 100, 1000);
@@ -140,7 +168,7 @@ INSERT INTO ORDERS VALUES ('O0009', 'C0002', 'E0009', TO_DATE('2023-01-09', 'YYY
 INSERT INTO ORDERS VALUES ('O0010', 'C0003', 'E0010', TO_DATE('2023-01-10', 'YYYY-MM-DD'), TO_DATE('2023-01-14', 'YYYY-MM-DD'), 12, 250, 3000);
 
 
-
+--DISPLAYING THE TABLES WITH VALUES 
 SELECT * FROM LOCATION;
 SELECT * FROM CUSTOMER_POLICY;
 SELECT * FROM EMPLOYEE;
@@ -149,49 +177,143 @@ SELECT * FROM AGENCY;
 SELECT * FROM SUPPLIER;
 SELECT * FROM ORDERS;
 SELECT * FROM SUPPLIER_AGENCY_MAPPING;
-                     
--------------------------------------------------------------------------------------------------------
 
+-------------------------------------------------------------------------------------
 
---1. ENSURE THAT DELIVERY DATE IS ONLY AFTER THE ORDER DATE
---2. WHEN A CUSTOMER EXCEED THEIR QUOTA, DISPLAY A MSG
+--1. ENSURING THAT DELIVERY DATE IS ONLY AFTER THE ORDER DATE
+ALTER TABLE ORDERS
+ADD CONSTRAINT CHECK_DELIVERY_DATE
+CHECK (DELIVERY_DATE >= ORDER_DATE);
 
---3. IF EMPLOYEE, CUSTOMER AND AGENCY ARE NOT IN THE SAME LOCATION FOR ANY ORDER, THROW AN ERROR
-SET SERVEROUTPUT ON;
+-- a) This query should fail because the delivery date is before the order date
+INSERT INTO ORDERS (ORDER_ID, CUST_ID, EMP_ID, ORDER_DATE, DELIVERY_DATE, QTY, UNIT_PRICE, TOTAL_AMT)
+VALUES ('O0012', 'C0002', 'E0002', TO_DATE('2024-06-06', 'YYYY-MM-DD'), TO_DATE('2024-06-05', 'YYYY-MM-DD'), 20, 150, 3000);
 
--- Create or replace the trigger with debug output
-CREATE OR REPLACE TRIGGER trg_check_order_location
-BEFORE INSERT OR UPDATE ON ORDERS
+-- b) This query should succeed because the delivery date is after the order date
+INSERT INTO ORDERS (ORDER_ID, CUST_ID, EMP_ID, ORDER_DATE, DELIVERY_DATE, QTY, UNIT_PRICE, TOTAL_AMT)
+VALUES ('O0011', 'C0003', 'E0001', TO_DATE('2024-06-01', 'YYYY-MM-DD'), TO_DATE('2024-06-05', 'YYYY-MM-DD'), 1, 600, 600)
+
+--2. TRIGGER TO BE FIRED WHEN CUSTOMER EXCEEDS QUOTA
+CREATE OR REPLACE TRIGGER trg_check_customer_quota
+BEFORE INSERT OR UPDATE ON CUSTOMER
 FOR EACH ROW
 DECLARE
-    v_emp_loc NUMBER(6);
-    v_cust_loc NUMBER(6);
-    v_agency_loc NUMBER(6);
+    v_quota CUSTOMER_POLICY.CUST_QUOTA%TYPE;
 BEGIN
-    -- Get the location of the employee
-    SELECT EMP_LOC INTO v_emp_loc
-    FROM EMPLOYEE
-    WHERE EMP_ID = :NEW.EMP_ID;
-
-    -- Get the location of the customer and agency
-    SELECT CUST_LOC, AGENCY_LOC INTO v_cust_loc, v_agency_loc
-    FROM CUSTOMER
-    JOIN AGENCY ON CUSTOMER.CUST_AGENCY = AGENCY.AGENCY_ID
-    WHERE CUST_ID = :NEW.CUST_ID;
-
-    -- Debugging output
-    DBMS_OUTPUT.PUT_LINE('Employee Location: ' || v_emp_loc);
-    DBMS_OUTPUT.PUT_LINE('Customer Location: ' || v_cust_loc);
-    DBMS_OUTPUT.PUT_LINE('Agency Location: ' || v_agency_loc);
-
-    -- Check if all locations match
-    IF v_emp_loc != v_cust_loc OR v_cust_loc != v_agency_loc THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Employee, Customer, and Agency must be in the same location for any order.');
+    -- Retrieve customer's quota based on customer type
+    SELECT CUST_QUOTA INTO v_quota
+    FROM CUSTOMER_POLICY
+    WHERE CUST_TYPE = :new.CUST_TYPE;
+    
+    -- Check if the new balance quota exceeds the allowed quota
+    IF :new.CUST_BAL_QUOTA > v_quota THEN
+        -- Raise an exception or handle the situation as per your business logic
+        RAISE_APPLICATION_ERROR(-20001, 'Customer quota exceeded!');
     END IF;
 END;
 /
 
+--checking for errors 
+ SHOW ERRORS TRIGGER trg_check_customer_quota;
 
---4. IMPLEMENT INSERT, DELETE, SEARCH, UPDATE, EXIT AND REFRESH USING JAVA NETBEANS ON FRONT END
 
---5. GENERATE A BILL FOR A GIVEN CUSTOMER'S LATEST ORDER
+-- testing the trigger
+-- a) This should succeed as the balance quota (50) is within the allowed quota for type T0001 (100)
+INSERT INTO CUSTOMER (CUST_ID, CUST_NAME, CUST_LOC, CUSTPHNO, CUST_AGENCY, CUST_TYPE, CUST_AADHAAR, CUST_BAL_QUOTA)
+VALUES ('C0020', 'Alice', 560084, 9876543210, 'A0001', 'T0001', 123456789020, 50);
+
+-- b) This should fail as the balance quota (150) exceeds the allowed quota for type T0001 (100)
+INSERT INTO CUSTOMER (CUST_ID, CUST_NAME, CUST_LOC, CUSTPHNO, CUST_AGENCY, CUST_TYPE, CUST_AADHAAR, CUST_BAL_QUOTA)
+VALUES ('C0021', 'Bob', 560084, 9876543211, 'A0001', 'T0001', 123456789021, 150);
+
+
+--To create a trigger that checks if the employee, customer, and agency involved in an 
+--order are all located in the same location
+
+CREATE OR REPLACE TRIGGER trg_check_order_locations
+BEFORE INSERT OR UPDATE ON ORDERS
+FOR EACH ROW
+DECLARE
+    v_cust_loc LOCATION.PINCODE%TYPE;
+    v_emp_loc LOCATION.PINCODE%TYPE;
+    v_agency_loc LOCATION.PINCODE%TYPE;
+BEGIN
+    -- Retrieve customer location
+    SELECT CUST_LOC INTO v_cust_loc
+    FROM CUSTOMER
+    WHERE CUST_ID = :new.CUST_ID;
+
+    -- Retrieve employee location
+    SELECT EMP_LOC INTO v_emp_loc
+    FROM EMPLOYEE
+    WHERE EMP_ID = :new.EMP_ID;
+
+    -- Retrieve agency location
+    SELECT AGENCY_LOC INTO v_agency_loc
+    FROM AGENCY
+    WHERE AGENCY_ID = (SELECT CUST_AGENCY FROM CUSTOMER WHERE CUST_ID = :new.CUST_ID);
+
+    -- Check if all locations are the same
+    IF v_cust_loc != v_emp_loc OR v_emp_loc != v_agency_loc THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Employee, Customer, and Agency must be in the same location for any order.');
+    END IF;
+END;
+/
+
+--to check for errors
+SHOW ERRORS TRIGGER trg_check_order_locations;
+
+--test the trigger
+-- a) assuming the customer, employee, and agency are all located in the same location (560084)
+INSERT INTO ORDERS (ORDER_ID, CUST_ID, EMP_ID, ORDER_DATE, DELIVERY_DATE, QTY, UNIT_PRICE, TOTAL_AMT)
+VALUES ('O0021', 'C0001', 'E0001', TO_DATE('2024-06-01', 'YYYY-MM-DD'), TO_DATE('2024-06-05', 'YYYY-MM-DD'), 10, 100, 1000);
+
+-- b) assuming the customer is in location 560084, employee is in location 560079, and agency is in location 560084
+INSERT INTO ORDERS (ORDER_ID, CUST_ID, EMP_ID, ORDER_DATE, DELIVERY_DATE, QTY, UNIT_PRICE, TOTAL_AMT)
+VALUES ('O0022', 'C0001', 'E0002', TO_DATE('2024-06-01', 'YYYY-MM-DD'), TO_DATE('2024-06-05', 'YYYY-MM-DD'), 10, 100, 1000);
+
+
+-- to create a procedure to generate a bill
+CREATE OR REPLACE PROCEDURE generate_bill (
+    p_cust_id IN CUSTOMER.CUST_ID%TYPE
+) IS
+    v_order_id ORDERS.ORDER_ID%TYPE;
+    v_order_date ORDERS.ORDER_DATE%TYPE;
+    v_delivery_date ORDERS.DELIVERY_DATE%TYPE;
+    v_qty ORDERS.QTY%TYPE;
+    v_unit_price ORDERS.UNIT_PRICE%TYPE;
+    v_total_amt ORDERS.TOTAL_AMT%TYPE;
+BEGIN
+    -- Find the latest order for the given customer
+    SELECT ORDER_ID, ORDER_DATE, DELIVERY_DATE, QTY, UNIT_PRICE, TOTAL_AMT
+    INTO v_order_id, v_order_date, v_delivery_date, v_qty, v_unit_price, v_total_amt
+    FROM (
+        SELECT ORDER_ID, ORDER_DATE, DELIVERY_DATE, QTY, UNIT_PRICE, TOTAL_AMT
+        FROM ORDERS
+        WHERE CUST_ID = p_cust_id
+        ORDER BY ORDER_DATE DESC
+    )
+    WHERE ROWNUM = 1;
+
+    -- Display the bill
+    DBMS_OUTPUT.PUT_LINE('Bill for Customer ID: ' || p_cust_id);
+    DBMS_OUTPUT.PUT_LINE('Order ID: ' || v_order_id);
+    DBMS_OUTPUT.PUT_LINE('Order Date: ' || TO_CHAR(v_order_date, 'YYYY-MM-DD'));
+    DBMS_OUTPUT.PUT_LINE('Delivery Date: ' || TO_CHAR(v_delivery_date, 'YYYY-MM-DD'));
+    DBMS_OUTPUT.PUT_LINE('Quantity: ' || v_qty);
+    DBMS_OUTPUT.PUT_LINE('Unit Price: ' || v_unit_price);
+    DBMS_OUTPUT.PUT_LINE('Total Amount: ' || v_total_amt);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No orders found for Customer ID: ' || p_cust_id);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('An error occurred: ' || SQLERRM);
+END;
+/
+
+SET SERVEROUTPUT ON;
+-- This should display the bill for the customer's latest order
+EXEC generate_bill('C0001');
+
+EXEC generate_bill('C0002');
+
